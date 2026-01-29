@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, UTC
+import os
 from pathlib import Path
 
 
@@ -17,6 +18,11 @@ def main() -> int:
 
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
+
+    # Maintenance/disable flag
+    if os.getenv("DISABLE_ALL_SERVICES", "").lower() in {"1", "true", "yes"}:
+        print("All services are disabled by administrator (DISABLE_ALL_SERVICES).")
+        return 0
 
     from src.models import load_actions, load_strategies, StrategicObjective
     from src.alignment import AlignmentEngine

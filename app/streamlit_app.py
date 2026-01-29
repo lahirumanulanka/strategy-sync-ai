@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -60,6 +61,11 @@ st.set_page_config(page_title=APP_TITLE, layout="wide")
 st.title(APP_TITLE)
 st.write(APP_DESC)
 
+# Maintenance/disable flag
+if os.getenv("DISABLE_ALL_SERVICES", "").lower() in {"1", "true", "yes"}:
+    st.warning("The application is currently disabled by administrator.")
+    st.stop()
+
 with st.sidebar:
     st.header("Data Sources")
     use_sample = st.checkbox("Use sample data", value=True)
@@ -71,7 +77,8 @@ with st.sidebar:
         uploaded_strategic = st.file_uploader("Upload Strategic JSON", type=["json"])
         uploaded_action = st.file_uploader("Upload Action JSON", type=["json"])
 
-run = st.button("Run Synchronization")
+auto_run = os.getenv("AUTO_RUN_SAMPLE", "").lower() in {"1", "true", "yes"}
+run = st.button("Run Synchronization") or auto_run
 
 if run:
     try:
