@@ -4,6 +4,7 @@ import json
 from datetime import datetime, UTC
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -18,6 +19,9 @@ def main() -> int:
 
     if str(ROOT) not in sys.path:
         sys.path.insert(0, str(ROOT))
+
+    # Load environment variables from .env if present (explicit path to avoid edge cases)
+    load_dotenv(ROOT / ".env")
 
     # Maintenance/disable flag
     if os.getenv("DISABLE_ALL_SERVICES", "").lower() in {"1", "true", "yes"}:
