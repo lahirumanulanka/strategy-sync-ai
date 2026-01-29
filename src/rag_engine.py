@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from .models import StrategicObjective
+
+if TYPE_CHECKING:
+    from openai.types.chat import ChatCompletionUserMessageParam
 
 
 def _alignment_label(score: float) -> str:
@@ -36,7 +39,7 @@ class RAGEngine:
         strategy: StrategicObjective,
         current_score: float,
         retrieved_actions: List[Dict[str, Any]],
-    ) -> Dict[str, Any]:
+    ) -> ChatCompletionUserMessageParam:
         system = "You are an AI business analyst."
 
         actions_lines = []
@@ -88,56 +91,25 @@ class RAGEngine:
         }
 
     # ------------------------- LLM Invocation -------------------------
-    def _call_openai(self, user_msg: Dict[str, Any]) -> Optional[str]:
+    def _call_openai(self, user_msg: ChatCompletionUserMessageParam) -> Optional[str]:
         if not self.api_key:
             return None
         try:
-            # Prefer modern OpenAI client; fall back to legacy if necessary.
-            try:
-                from openai import OpenAI  # type: ignore
+            from openai import OpenAI  # type: ignore
 
-                client = OpenAI(api_key=self.api_key)
-                resp = client.responses.create(
-                    model=self.model,
-                    input=[
-                        {
-                            "role": "system",
-                            "content": "You are an AI business analyst.",
-                        },
-                        user_msg,
-                    ],
-                    temperature=0.2,
-                )
-                # Unified access to first text output
-                for out in getattr(resp, "output", []) or []:
-                    if getattr(out, "type", "") == "message":
-                        parts = getattr(out, "content", []) or []
-                        for p in parts:
-                            if getattr(p, "type", "") == "output_text":
-                                return getattr(p, "text", None)
-                # Fallback: try content[0].text
-                if hasattr(resp, "content"):
-                    c = getattr(resp, "content")
-                    if isinstance(c, list) and c and hasattr(c[0], "text"):
-                        return getattr(c[0], "text")
-                return None
-            except Exception:
-                # Legacy SDK fallback
-                import openai  # type: ignore
-
-                openai.api_key = self.api_key
-                completion = openai.ChatCompletion.create(
-                    model=self.model,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are an AI business analyst.",
-                        },
-                        user_msg,
-                    ],
-                    temperature=0.2,
-                )
-                return completion["choices"][0]["message"]["content"]
+            client = OpenAI(api_key=self.api_key)
+            completion = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an AI business analyst.",
+                    },
+                    user_msg,
+                ],
+                temperature=0.2,
+            )
+            return completion.choices[0].message.content
         except Exception:
             return None
 
