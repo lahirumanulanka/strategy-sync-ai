@@ -1,3 +1,13 @@
+---
+title: Strategy–Action Synchronization AI
+emoji: 🧭
+colorFrom: indigo
+colorTo: purple
+sdk: streamlit
+app_file: app/streamlit_app.py
+pinned: false
+---
+
 # Strategy–Action Synchronization AI
 
 An MSc coursework project that evaluates how well an Action Plan aligns with a Strategic Plan using sentence embeddings, cosine similarity, and a persistent vector store. The system provides strategy-wise and overall synchronization metrics, weak-area identification, and rule-based recommendations — presented via a Streamlit dashboard.
@@ -77,6 +87,34 @@ streamlit run app/streamlit_app.py
 - **Explainability**: Salient phrase extraction to justify match scores.
 - **Data Validations**: Schema checks and user feedback for malformed inputs.
 - **Ops**: Containerization and small CI checks (lint/type).
+
+## Deploying to Hugging Face Spaces
+- **Prereqs**: A Hugging Face account and a token with repo/Space create rights.
+- **Auto-config**: This README includes the Spaces front matter (`sdk: streamlit`, `app_file: app/streamlit_app.py`).
+
+### Via Web UI
+- Create a Space at https://huggingface.co/new-space with SDK “Streamlit”.
+- Upload the project files (requirements.txt, README.md, app/, src/, data/).
+- Set Secrets in Space → Settings → Variables and secrets (e.g., `OPENAI_API_KEY`).
+
+### Via CLI
+Install and log in:
+
+```bash
+pip install -U huggingface_hub
+hf auth login
+```
+Create the Space and push:
+
+```bash
+python -c "from huggingface_hub import create_repo; create_repo('YOUR_USERNAME/strategy-sync-ai', repo_type='space', space_sdk='streamlit', exist_ok=True)"
+git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/strategy-sync-ai
+git push hf main
+```
+
+### Secrets to Configure
+- `OPENAI_API_KEY`: Needed if LLM-based features are enabled.
+- Additional keys referenced by `.env` should be added via Spaces Secrets, not committed.
 
 ## MSc Submission Tips
 - **Screenshots**: 
