@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from pypdf import PdfReader
 
-OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
 

@@ -30,7 +30,7 @@ class RAGEngine:
 
     def __init__(self, model: Optional[str] = None) -> None:
         # Model name can be overridden via env var OPENAI_MODEL
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-5")
         self.api_key = os.environ.get("OPENAI_API_KEY")
 
     # ------------------------- Prompt Construction -------------------------
