@@ -69,29 +69,67 @@ if os.getenv("DISABLE_ALL_SERVICES", "").lower() in {"1", "true", "yes"}:
 with st.sidebar:
     st.header("Data Sources")
     use_sample = st.checkbox("Use sample data", value=True)
-    st.caption("Toggle off to upload your own JSON arrays.")
+    st.caption("Toggle off to upload your own plans (JSON or PDF).")
     use_llm = st.checkbox("Use LLM (RAG) for suggestions if available", value=False)
     uploaded_strategic = None
     uploaded_action = None
     if not use_sample:
-        uploaded_strategic = st.file_uploader("Upload Strategic JSON", type=["json"])
-        uploaded_action = st.file_uploader("Upload Action JSON", type=["json"])
+        uploaded_strategic = st.file_uploader(
+            "Upload Strategic Plan (JSON or PDF)", type=["json", "pdf"]
+        )
+        uploaded_action = st.file_uploader(
+            "Upload Action Plan (JSON or PDF)", type=["json", "pdf"]
+        )
 
 auto_run = os.getenv("AUTO_RUN_SAMPLE", "").lower() in {"1", "true", "yes"}
 run = st.button("Run Synchronization") or auto_run
 
 if run:
     try:
+        s_data = None
+        a_data = None
         # Load data
         if use_sample:
             strategies = load_strategies(DATA_DIR / "strategic.json")
             actions = load_actions(DATA_DIR / "action.json")
         else:
             if not uploaded_strategic or not uploaded_action:
-                st.warning("Please upload both Strategic and Action JSON files.")
+                st.warning(
+                    "Please upload both Strategic and Action files (JSON or PDF)."
+                )
                 st.stop()
-            s_data = _load_uploaded_json_list(uploaded_strategic)
-            a_data = _load_uploaded_json_list(uploaded_action)
+            from src.pdf_to_json import parse_strategic_pdf, parse_action_pdf
+
+            def _load_any(upload):
+                if upload.type == "application/json" or (
+                    upload.name or ""
+                ).lower().endswith(".json"):
+                    return _load_uploaded_json_list(upload)
+                elif upload.type in {"application/pdf", "application/x-pdf"} or (
+                    upload.name or ""
+                ).lower().endswith(".pdf"):
+                    pdf_bytes = upload.read()
+                    return None, pdf_bytes
+                else:
+                    raise ValueError(
+                        "Unsupported file type. Please upload JSON or PDF."
+                    )
+
+            s_json_or_pdf = _load_any(uploaded_strategic)
+            a_json_or_pdf = _load_any(uploaded_action)
+
+            if isinstance(s_json_or_pdf, tuple):
+                _, s_pdf = s_json_or_pdf
+                s_data = parse_strategic_pdf(s_pdf)
+            else:
+                s_data = s_json_or_pdf
+
+            if isinstance(a_json_or_pdf, tuple):
+                _, a_pdf = a_json_or_pdf
+                a_data = parse_action_pdf(a_pdf)
+            else:
+                a_data = a_json_or_pdf
+
             strategies = _build_strategy_objects(s_data)
             actions = _build_action_objects(a_data)
 
@@ -245,6 +283,22 @@ if run:
             # Save to outputs folder
             out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
             st.success(f"Results saved to {out_path}")
+            # If user uploaded PDFs, offer the converted JSON downloads
+            if not use_sample and uploaded_strategic and uploaded_action:
+                if (uploaded_strategic.name or "").lower().endswith(".pdf"):
+                    st.download_button(
+                        label="Download Converted Strategic JSON",
+                        data=json.dumps(s_data, indent=2),
+                        file_name="strategic_converted.json",
+                        mime="application/json",
+                    )
+                if (uploaded_action.name or "").lower().endswith(".pdf"):
+                    st.download_button(
+                        label="Download Converted Action JSON",
+                        data=json.dumps(a_data, indent=2),
+                        file_name="action_converted.json",
+                        mime="application/json",
+                    )
             # Downloads
             st.download_button(
                 label="Download Results JSON",
