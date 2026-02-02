@@ -1,193 +1,326 @@
----
-noteId: "1a39f870004b11f1b8fdb77554cd560f"
-tags: []
-title: "Strategy–Action Synchronization AI"
-emoji: "🧭"
-colorFrom: "indigo"
-colorTo: "purple"
-sdk: "streamlit"
-app_file: "app/streamlit_app.py"
-pinned: false
+# Strategy–Action Synchronization AI  
+(Intelligent Strategic Plan Synchronization System – ISPS)
+
+## 1. Introduction
+
+This project is developed as part of the **MSc in Computer Science – Information Retrieval** coursework (2024 Batch).
+
+The aim of this system is to **intelligently evaluate how well an organization’s Action Plan aligns with its Strategic Plan**. In many real-world organizations, strategic goals and operational actions are documented separately, making it difficult to objectively verify whether execution truly supports strategy.
+
+This system uses **Natural Language Processing (NLP)**, **sentence embeddings**, **vector similarity**, and **intelligent recommendation techniques** to:
+- Measure alignment quantitatively
+- Identify weak or missing action coverage
+- Provide improvement suggestions
+- Present insights through an interactive dashboard
 
 ---
 
-# Strategy–Action Synchronization AI
+## 2. Problem Background
 
-An MSc coursework project that evaluates how well an Action Plan aligns with a Strategic Plan using sentence embeddings, cosine similarity, and a persistent vector store. The system provides strategy-wise and overall synchronization metrics, weak-area identification, and rule-based recommendations — presented via a Streamlit dashboard.
+Organizations often face the following challenges:
+- Strategies are high-level and abstract
+- Actions are operational and detailed
+- Manual alignment checks are subjective
+- Large documents are difficult to analyze consistently
 
-## Explain Like I'm a Student (Step‑by‑Step)
-- You give the app two lists in JSON: strategies and actions.
-- We turn each strategy and action into a short, clean sentence (title + description + KPIs/outputs).
-- We convert those sentences into vectors (lists of numbers) using an embedding model.
-- We store all action vectors in a small database (ChromaDB) so we can search quickly.
-- For each strategy, we search the most similar actions and compute an average score.
-- We label alignment: Strong / Medium / Weak based on thresholds.
-- We then generate suggestions in two ways:
-  - If OpenAI API is available: call the LLM (e.g., GPT‑5) to produce structured recommendations.
-  - If not: produce deterministic, rule‑based suggestions.
-- Finally, we show results in a Streamlit dashboard and let you export JSON/CSVs.
+Traditional keyword matching fails because:
+- Different wording may express the same meaning
+- Important semantic relationships are missed
 
-## Problem Statement
-Organizations often have well-written strategies but struggle to ensure execution truly aligns with intended outcomes. This project quantifies alignment between strategic objectives and action tasks, surfaces coverage gaps, and recommends improvements that are deterministic, explainable, and fit for academic evaluation.
+This project addresses the problem by using **semantic similarity** instead of keyword overlap.
 
-## System Architecture
-- **Data Layer**: JSON input for strategies and actions; persistent vector store in ChromaDB.
-- **Embedding Layer**: SentenceTransformers (`all-MiniLM-L6-v2` by default) to create fixed‑length text embeddings.
-- **Vector Store**: ChromaDB collection (`actions`) using cosine distance; converts to similarity.
-- **Alignment Engine**: Per‑strategy top‑K retrieval, average of top‑3 similarities, label assignment, coverage.
-- **RAG Suggestions**: Optional OpenAI call (if key present) that returns strict JSON; otherwise deterministic fallback.
-- **UI/CLI**: Streamlit dashboard for exploration; Python CLI to batch‑run and save outputs.
+---
 
-```
-strategic.json + action.json → models → text_utils → embeddings → ChromaDB → alignment → recommendations → Streamlit UI
-```
+## 3. System Objectives
 
-## AI Techniques Used
-- **Text Embeddings**: SentenceTransformers for semantically meaningful vectorization.
-- **Vector Search**: ChromaDB persistent collection with cosine distance.
-- **Deterministic Rules**: Threshold-based labels (Strong/Medium/Weak) and rule-based recommendations for explainability.
+The main objectives of the system are:
 
-## How Synchronization Is Calculated
-- **Strategy-to-Action Matching**: For each strategy, generate embedding and query top-K similar action embeddings.
-- **Per-Strategy Average**: Average of the top-3 similarity scores → `avg_top3_similarity`.
-- **Labels**: `Strong (≥0.75)`, `Medium (≥0.55)`, else `Weak`.
-- **Overall Score**: Mean of per-strategy averages scaled to 0–100.
-- **Coverage**: Percentage of strategies with at least 2 actions labeled `Strong`.
+1. Measure overall synchronization between Strategic and Action Plans  
+2. Analyze alignment for each individual strategy  
+3. Identify weakly supported or unsupported strategies  
+4. Provide intelligent and explainable improvement suggestions  
+5. Visualize insights in an interactive and user-friendly dashboard  
+6. Ensure deterministic behavior suitable for academic evaluation  
 
-Rationale: Top-3 averaging balances noise and outliers, providing a stable estimate of practical alignment to multiple actionable tasks.
+---
 
-## Project Structure
-```
-app/
-  streamlit_app.py
-src/
-  models.py
-  text_utils.py
-  vector_store.py
-  alignment.py
-  recommendations.py
-data/
-  strategic.json
-  action.json
-outputs/
-chroma_db/
-requirements.txt
-README.md
-.gitignore
-```
+## 4. High-Level System Architecture
 
-## Run Locally (Step‑by‑Step)
-1) Create and activate a virtual environment (recommended):
+The system follows a **layered architecture**, where each layer has a clear responsibility.
 
+Strategic Plan (JSON) + Action Plan (JSON)
+↓
+Text Preprocessing Layer
+↓
+Embedding Generation Layer
+↓
+Vector Database (ChromaDB)
+↓
+Strategy–Action Similarity Matching
+↓
+Alignment & Coverage Computation
+↓
+Recommendation Generation Layer
+↓
+Streamlit Dashboard (UI)
+
+This architecture improves:
+- Modularity
+- Explainability
+- Maintainability
+- Academic clarity
+
+---
+
+## 5. Project Directory Structure
+
+strategy-sync-ai/
+│
+├── app/
+│   └── streamlit_app.py
+│
+├── src/
+│   ├── alignment.py
+│   ├── models.py
+│   ├── text_utils.py
+│   ├── vector_store.py
+│   ├── recommendations.py
+│   ├── rag_engine.py
+│   ├── pdf_to_json.py
+│   ├── viz.py
+│   └── io_utils.py
+│
+├── data/
+│   ├── strategic.json
+│   └── action.json
+│
+├── chroma_db/
+│
+├── outputs/
+│
+├── scripts/
+│   ├── check_openai.py
+│   └── run_alignment.py
+│
+├── tests/
+│
+├── main.py
+├── requirements.txt
+├── README.md
+├── LICENSE
+└── .gitignore
+
+---
+
+## 6. Component-Level Explanation
+
+### 6.1 User Interface Layer (`app/`)
+
+**File:** `streamlit_app.py`
+
+- Implements the interactive dashboard using Streamlit
+- Allows users to:
+  - Upload strategic and action data
+  - Run synchronization analysis
+  - View charts and tables
+  - Download results as JSON or CSV
+
+This layer only **displays results** and does not perform AI logic.
+
+---
+
+### 6.2 Data Modeling & Preprocessing (`src/models.py`, `src/text_utils.py`)
+
+- Structured inputs (title, description, KPIs) are converted into **clean sentences**
+- This improves embedding quality and reduces noise
+- Ensures consistent text representation
+
+---
+
+### 6.3 Embedding Layer (`SentenceTransformers`)
+
+- Uses `all-MiniLM-L6-v2`
+- Converts each strategy and action into a numerical vector
+- Captures semantic meaning rather than keywords
+
+---
+
+### 6.4 Vector Storage Layer (`src/vector_store.py`)
+
+- Uses **ChromaDB** as a persistent vector database
+- Stores action embeddings
+- Enables fast cosine similarity search
+- Avoids recomputation across multiple runs
+
+---
+
+### 6.5 Synchronization & Alignment Engine (`src/alignment.py`)
+
+For each strategy:
+1. Generate embedding
+2. Retrieve top-K similar actions
+3. Select top 3 matches
+4. Compute average similarity score
+
+#### Alignment Labels
+
+| Score Range | Label  |
+|------------|--------|
+| ≥ 0.75     | Strong |
+| ≥ 0.55     | Medium |
+| < 0.55     | Weak   |
+
+#### Overall Metrics
+- **Overall Score:** Mean of strategy scores (scaled to 0–100)
+- **Coverage:** Percentage of strategies supported by at least two strong actions
+
+This logic is **deterministic and explainable**, which is important for academic evaluation.
+
+---
+
+### 6.6 Recommendation Layer (`src/recommendations.py`, `src/rag_engine.py`)
+
+The system supports **two recommendation modes**:
+
+#### LLM-Based Mode
+- Uses OpenAI API (if available)
+- Generates structured improvement suggestions
+- Uses retrieved context (RAG-style)
+
+#### Deterministic Fallback Mode
+- Rule-based logic
+- Works without any external API
+- Ensures reproducibility and fairness
+
+Suggestions include:
+- Missing actions
+- Weak KPI coverage
+- Timeline or ownership gaps
+
+---
+
+### 6.7 PDF to JSON Conversion (`src/pdf_to_json.py`)
+
+- Allows strategic and action plans to be uploaded as PDFs
+- Extracts text and converts it into structured JSON
+- Bridges real-world documents with AI processing
+
+---
+
+## 7. Visualization Layer (`src/viz.py`)
+
+The dashboard includes:
+- Overall synchronization gauge
+- Strategy-wise bar charts
+- Alignment distribution pie chart
+- Heatmaps of similarity scores
+- Expandable strategy–action mappings
+
+These visualizations help non-technical users understand results easily.
+
+---
+
+## 8. Running the System
+
+### 8.1 Setup
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
-```
-
-2) Install dependencies:
-
-```bash
 pip install -r requirements.txt
-```
-3) (Optional) Enable OpenAI for RAG suggestions. Create a `.env` file in the project root:
 
-```
-OPENAI_API_KEY=sk-your-real-key
-# Choose a model you have access to. Examples: gpt-5, gpt-4o, gpt-4o-mini
-OPENAI_MODEL=gpt-5
-```
-
-Quick connectivity test:
-
-```bash
-python scripts/check_openai.py
-```
-
-4) Launch the Streamlit app:
-
-```bash
+8.2 Run Dashboard
 streamlit run app/streamlit_app.py
-```
-Then, use the sample `data/strategic.json` and `data/action.json` or upload your own JSON arrays. Click “Run Synchronization” to view results and download outputs.
 
-5) Run the CLI (batch, non‑UI) and save outputs:
-
-```bash
+8.3 Run CLI Mode
 python scripts/run_alignment.py
-```
-You’ll see overall metrics in the terminal, and a timestamped JSON under `outputs/`.
 
-## Visualizations & Dashboard
-- **Overview Tab**: Gauge charts for Overall Score and Coverage; bar chart of per-strategy average similarity; pie chart of alignment labels; heatmap of top-match similarities; owner workload bar.
-- **Strategy Explorer Tab**: Ranked strategy table and long-form matches table; per-strategy expanders with top-match details.
-- **RAG Suggestions Tab**: Optional LLM recommendations (if enabled) or deterministic rule-based suggestions.
-- **Data Export Tab**: Download combined JSON plus CSVs for strategies and matches.
+## 9. Evaluation Strategy
 
-## Future Improvements
-- **Model Choice**: Configurable embedding models and accuracy/latency trade-offs.
-- **Weighting**: KPI-weighted similarity or strategy priority weighting.
-- **Temporal Logic**: Advanced schedule alignment (e.g., critical path coverage).
-- **Explainability**: Salient phrase extraction to justify match scores.
-- **Data Validations**: Schema checks and user feedback for malformed inputs.
-- **Ops**: Containerization and small CI checks (lint/type).
+To ensure the correctness, reliability, and academic validity of the system, multiple evaluation approaches are considered.
 
-## Deploying to Hugging Face Spaces
-- **Prereqs**: A Hugging Face account and a token with repo/Space create rights.
-- **Auto-config**: This README includes the Spaces front matter (`sdk: streamlit`, `app_file: app/streamlit_app.py`).
+### 9.1 Manual Ground-Truth Mapping
+A subset of strategies and actions can be manually mapped by the student or a domain expert to establish a **ground-truth alignment**.  
+The system-generated matches are then compared against this reference mapping to verify semantic correctness.
 
-### Via Web UI
-- Create a Space at https://huggingface.co/new-space with SDK “Streamlit”.
-- Upload the project files (requirements.txt, README.md, app/, src/, data/).
-- Set Secrets in Space → Settings → Variables and secrets (e.g., `OPENAI_API_KEY`).
+### 9.2 Expert Validation
+Recommendations generated by the system, especially for weakly aligned strategies, can be reviewed by:
+- Academic supervisors
+- Industry practitioners
+- Subject matter experts
 
-### Via CLI
-Install and log in:
+This qualitative evaluation helps assess whether the suggested improvements are realistic and actionable.
 
-```bash
-pip install -U huggingface_hub
-hf auth login
-```
-Create the Space and push:
+### 9.3 Precision and Recall
+Information Retrieval metrics are applied to strategy–action matching:
+- **Precision** measures how many retrieved actions are truly relevant to a strategy.
+- **Recall** measures how many relevant actions are successfully retrieved.
 
-```bash
-python -c "from huggingface_hub import create_repo; create_repo('YOUR_USERNAME/strategy-sync-ai', repo_type='space', space_sdk='streamlit', exist_ok=True)"
-git remote add hf https://huggingface.co/spaces/YOUR_USERNAME/strategy-sync-ai
-git push hf main
-```
+These metrics help evaluate the effectiveness of embedding-based similarity matching.
 
-### Secrets to Configure
-- `OPENAI_API_KEY`: Needed if LLM-based features are enabled.
-- `OPENAI_MODEL`: Set to a model available to your account (e.g., `gpt-5`, `gpt-4o`, `gpt-4o-mini`).
-- Additional keys referenced by `.env` should be added via Spaces Secrets, not committed.
+### 9.4 Stability of Similarity Scores
+The system is tested across multiple runs using the same input data to confirm that:
+- Similarity scores remain stable
+- Alignment labels are consistent
 
-## MSc Submission Tips
-- **Screenshots**: 
-  - Home screen with description and toggles
-  - Strategy-wise alignment table
-  - A few expanders showing detailed matches
-  - Metrics for Overall Score and Coverage
-  - Recommendations section
-  - Download prompt + saved JSON file in `outputs/`
-- **Outputs**: Include one exported JSON and a short narrative interpreting results.
-- **Explanations**: Emphasize deterministic thresholds, average-of-top-3 reasoning, and coverage definition; discuss model limitations and proposed mitigations.
+This ensures deterministic behavior suitable for academic assessment.
 
-## Troubleshooting
-- 401 invalid_api_key: The key is missing/placeholder/revoked. Update `.env` and retry `python scripts/check_openai.py`.
-- Unsupported parameter (temperature / max_tokens): Some models restrict params. The code avoids these in RAG and the check script.
-- Proxy/network errors: Temporarily unset proxies: `unset HTTP_PROXY HTTPS_PROXY ALL_PROXY` and retry.
-- Tokenizers fork warning: Set `TOKENIZERS_PARALLELISM=false` to silence.
+---
 
-## Dev Quick Commands
-```bash
-# Activate venv and install deps
-source .venv/bin/activate
-python -m pip install -r requirements.txt
+## 10. Deployment
 
-# Run tests
-python -m pip install pytest
-python -m pytest -q
+The application is designed to support both local execution and public deployment.
 
-# Run alignment CLI (no API key → deterministic RAG)
-python scripts/run_alignment.py
-```
+### 10.1 Supported Hosting Platforms
+The system can be deployed using:
+- **Hugging Face Spaces** (Streamlit-based hosting)
+- **Streamlit Community Cloud**
+- **Cloud Virtual Machines** (AWS, Azure, or similar platforms)
+
+### 10.2 Public Deployment
+The project is publicly hosted on Hugging Face Spaces at the following link:
+
+🔗 **Live Application:**  
+https://huggingface.co/spaces/hirumunasinghe/strategy-sync-ai
+
+This hosted version allows evaluators to interact with the system without local setup.
+
+### 10.3 Security Considerations
+- API keys (e.g., OpenAI) are managed using **environment variables**
+- Secrets are not hard-coded or committed to the repository
+- This approach supports basic security and good software engineering practices
+
+---
+
+## 11. Academic Contribution
+
+This project demonstrates several key academic and practical contributions:
+
+- Practical application of **Information Retrieval techniques**
+- Use of **semantic similarity through sentence embeddings**
+- Integration of a **vector database** for efficient retrieval
+- Design of an **explainable and deterministic AI system**
+- Development of a **real-world decision support tool**
+
+The system design, implementation, and evaluation align closely with the **MSc Information Retrieval coursework marking rubric**, particularly in system architecture, intelligent features, and dashboard usability.
+
+---
+
+## 12. Future Enhancements
+
+Several enhancements can be explored to extend the system further:
+
+- **Ontology-based strategy mapping** to capture hierarchical relationships
+- **Knowledge graph visualization** for strategy–action dependencies
+- **KPI-weighted similarity scoring** to prioritize critical objectives
+- **Agentic AI reasoning layer** for autonomous improvement exploration
+- **Temporal dependency analysis** to evaluate schedule and milestone alignment
+
+These improvements provide clear directions for future research and development.
+
+---
+
+## 13. Author
+
+**Lahiru Munasinghe**  
+MSc in Computer Science – Information Retrieval  
+2024 Batch
