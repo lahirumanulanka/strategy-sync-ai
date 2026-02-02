@@ -75,7 +75,6 @@ This architecture improves:
 ## 5. Project Directory Structure
 
 strategy-sync-ai/
-│
 ├── app/
 │   └── streamlit_app.py
 │
@@ -223,7 +222,6 @@ These visualizations help non-technical users understand results easily.
 ## 8. Running the System
 
 ### 8.1 Setup
-```bash
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
