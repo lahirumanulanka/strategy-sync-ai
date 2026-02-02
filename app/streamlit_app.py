@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import sys
 import os
+import warnings
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -55,6 +57,17 @@ def _build_strategy_objects(data: List[dict]) -> List[StrategicObjective]:
 def _build_action_objects(data: List[dict]) -> List[ActionTask]:
     return [ActionTask(**d) for d in data]
 
+
+# Silence ChromaDB telemetry and deprecation noise when running via Streamlit
+os.environ.setdefault("CHROMADB_ANONYMIZED_TELEMETRY", "false")
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
+os.environ.setdefault("CHROMADB_DISABLE_TELEMETRY", "1")
+os.environ.setdefault("CHROMADB_TELEMETRY_IMPLEMENTATION", "noop")
+logging.getLogger("transformers").setLevel(logging.ERROR)
+logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
+logging.getLogger("chromadb").setLevel(logging.ERROR)
+logging.getLogger("chromadb.telemetry").setLevel(logging.ERROR)
+warnings.simplefilter("ignore", DeprecationWarning)
 
 load_dotenv()
 st.set_page_config(page_title=APP_TITLE, layout="wide")

@@ -1,26 +1,42 @@
 ---
-title: Strategy–Action Synchronization AI
-emoji: 🧭
-colorFrom: indigo
-colorTo: purple
-sdk: streamlit
-app_file: app/streamlit_app.py
+noteId: "eb9187d0004611f1a87c5178a28aa623"
+tags: []
+title: "Strategy–Action Synchronization AI"
+emoji: "🧭"
+colorFrom: "indigo"
+colorTo: "purple"
+sdk: "streamlit"
+app_file: "app/streamlit_app.py"
 pinned: false
+
 ---
 
 # Strategy–Action Synchronization AI
 
 An MSc coursework project that evaluates how well an Action Plan aligns with a Strategic Plan using sentence embeddings, cosine similarity, and a persistent vector store. The system provides strategy-wise and overall synchronization metrics, weak-area identification, and rule-based recommendations — presented via a Streamlit dashboard.
 
+## Explain Like I'm a Student (Step‑by‑Step)
+- You give the app two lists in JSON: strategies and actions.
+- We turn each strategy and action into a short, clean sentence (title + description + KPIs/outputs).
+- We convert those sentences into vectors (lists of numbers) using an embedding model.
+- We store all action vectors in a small database (ChromaDB) so we can search quickly.
+- For each strategy, we search the most similar actions and compute an average score.
+- We label alignment: Strong / Medium / Weak based on thresholds.
+- We then generate suggestions in two ways:
+  - If OpenAI API is available: call the LLM (e.g., GPT‑5) to produce structured recommendations.
+  - If not: produce deterministic, rule‑based suggestions.
+- Finally, we show results in a Streamlit dashboard and let you export JSON/CSVs.
+
 ## Problem Statement
 Organizations often have well-written strategies but struggle to ensure execution truly aligns with intended outcomes. This project quantifies alignment between strategic objectives and action tasks, surfaces coverage gaps, and recommends improvements that are deterministic, explainable, and fit for academic evaluation.
 
 ## System Architecture
 - **Data Layer**: JSON input for strategies and actions; persistent vector store in ChromaDB.
-- **Embedding Layer**: SentenceTransformers (`all-MiniLM-L6-v2`) to create fixed-length text embeddings.
-- **Alignment Engine**: Cosine similarity search over action embeddings; per-strategy top-K matching, averaged top-3 alignment, and coverage.
-- **Recommendations**: Rule-based suggestions tailored to alignment strength (Weak/Medium/Strong).
-- **UI**: Streamlit app with Plotly visualizations, multi-tab dashboard, and JSON/CSV export.
+- **Embedding Layer**: SentenceTransformers (`all-MiniLM-L6-v2` by default) to create fixed‑length text embeddings.
+- **Vector Store**: ChromaDB collection (`actions`) using cosine distance; converts to similarity.
+- **Alignment Engine**: Per‑strategy top‑K retrieval, average of top‑3 similarities, label assignment, coverage.
+- **RAG Suggestions**: Optional OpenAI call (if key present) that returns strict JSON; otherwise deterministic fallback.
+- **UI/CLI**: Streamlit dashboard for exploration; Python CLI to batch‑run and save outputs.
 
 ```
 strategic.json + action.json → models → text_utils → embeddings → ChromaDB → alignment → recommendations → Streamlit UI
@@ -60,19 +76,47 @@ README.md
 .gitignore
 ```
 
-## How to Run
-1. Create and activate a Python 3.10+ environment.
-2. Install dependencies:
+## Run Locally (Step‑by‑Step)
+1) Create and activate a virtual environment (recommended):
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+```
+
+2) Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
-3. Launch the Streamlit app:
+3) (Optional) Enable OpenAI for RAG suggestions. Create a `.env` file in the project root:
+
+```
+OPENAI_API_KEY=sk-your-real-key
+# Choose a model you have access to. Examples: gpt-5, gpt-4o, gpt-4o-mini
+OPENAI_MODEL=gpt-5
+```
+
+Quick connectivity test:
+
+```bash
+python scripts/check_openai.py
+```
+
+4) Launch the Streamlit app:
 
 ```bash
 streamlit run app/streamlit_app.py
 ```
-4. Use sample data or upload your own JSON arrays; click **Run Synchronization** to view results and download the output JSON.
+Then, use the sample `data/strategic.json` and `data/action.json` or upload your own JSON arrays. Click “Run Synchronization” to view results and download outputs.
+
+5) Run the CLI (batch, non‑UI) and save outputs:
+
+```bash
+python scripts/run_alignment.py
+```
+You’ll see overall metrics in the terminal, and a timestamped JSON under `outputs/`.
 
 ## Visualizations & Dashboard
 - **Overview Tab**: Gauge charts for Overall Score and Coverage; bar chart of per-strategy average similarity; pie chart of alignment labels; heatmap of top-match similarities; owner workload bar.
@@ -114,6 +158,7 @@ git push hf main
 
 ### Secrets to Configure
 - `OPENAI_API_KEY`: Needed if LLM-based features are enabled.
+- `OPENAI_MODEL`: Set to a model available to your account (e.g., `gpt-5`, `gpt-4o`, `gpt-4o-mini`).
 - Additional keys referenced by `.env` should be added via Spaces Secrets, not committed.
 
 ## MSc Submission Tips
@@ -126,3 +171,23 @@ git push hf main
   - Download prompt + saved JSON file in `outputs/`
 - **Outputs**: Include one exported JSON and a short narrative interpreting results.
 - **Explanations**: Emphasize deterministic thresholds, average-of-top-3 reasoning, and coverage definition; discuss model limitations and proposed mitigations.
+
+## Troubleshooting
+- 401 invalid_api_key: The key is missing/placeholder/revoked. Update `.env` and retry `python scripts/check_openai.py`.
+- Unsupported parameter (temperature / max_tokens): Some models restrict params. The code avoids these in RAG and the check script.
+- Proxy/network errors: Temporarily unset proxies: `unset HTTP_PROXY HTTPS_PROXY ALL_PROXY` and retry.
+- Tokenizers fork warning: Set `TOKENIZERS_PARALLELISM=false` to silence.
+
+## Dev Quick Commands
+```bash
+# Activate venv and install deps
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+
+# Run tests
+python -m pip install pytest
+python -m pytest -q
+
+# Run alignment CLI (no API key → deterministic RAG)
+python scripts/run_alignment.py
+```

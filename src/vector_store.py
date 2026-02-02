@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Mapping, Sequence, Union
+import os
+import logging
 
 import chromadb
 from chromadb.config import Settings
@@ -17,7 +19,30 @@ class ActionVectorStore:
     """
 
     def __init__(self, persist_directory: str = "chroma_db") -> None:
-        # Disable telemetry to avoid noisy warnings/errors in local runs
+        # Hard-disable ChromaDB telemetry to avoid PostHog capture errors
+        os.environ.setdefault("CHROMADB_ANONYMIZED_TELEMETRY", "false")
+        os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
+        os.environ.setdefault("CHROMADB_DISABLE_TELEMETRY", "1")
+        os.environ.setdefault("CHROMADB_TELEMETRY_IMPLEMENTATION", "noop")
+        # Monkeypatch PostHog capture to a no-op to avoid signature errors
+        try:  # pragma: no cover
+            import posthog  # type: ignore
+
+            def _silent_capture(*args: Any, **kwargs: Any) -> None:
+                return None
+
+            def _silent_identify(*args: Any, **kwargs: Any) -> None:
+                return None
+
+            posthog.capture = _silent_capture  # type: ignore[attr-defined]
+            posthog.identify = _silent_identify  # type: ignore[attr-defined]
+        except Exception:
+            pass
+        # Silence telemetry/log noise
+        logging.getLogger("chromadb").setLevel(logging.ERROR)
+        logging.getLogger("chromadb.telemetry").setLevel(logging.ERROR)
+
+        # Disable telemetry via client settings too
         self.client = chromadb.PersistentClient(
             path=persist_directory,
             settings=Settings(anonymized_telemetry=False),

@@ -26,6 +26,11 @@ def run_ui(port: int | None = None) -> int:
     cmd.append("--server.headless=true")
     # Ensure app auto-runs sample alignment on startup
     env = os.environ.copy()
+    # Silence ChromaDB telemetry to avoid noisy capture errors
+    env.setdefault("CHROMADB_ANONYMIZED_TELEMETRY", "false")
+    env.setdefault("ANONYMIZED_TELEMETRY", "false")
+    env.setdefault("CHROMADB_DISABLE_TELEMETRY", "1")
+    env.setdefault("CHROMADB_TELEMETRY_IMPLEMENTATION", "noop")
     env.setdefault("AUTO_RUN_SAMPLE", "1")
     print("Starting Streamlit UI...\n", " ".join(cmd))
     return subprocess.call(cmd, cwd=str(ROOT_DIR), env=env)
@@ -38,7 +43,12 @@ def run_cli() -> int:
         str(ROOT_DIR / "scripts" / "run_alignment.py"),
     ]
     print("Running CLI alignment...\n", " ".join(cmd))
-    return subprocess.call(cmd, cwd=str(ROOT_DIR))
+    env = os.environ.copy()
+    env.setdefault("CHROMADB_ANONYMIZED_TELEMETRY", "false")
+    env.setdefault("ANONYMIZED_TELEMETRY", "false")
+    env.setdefault("CHROMADB_DISABLE_TELEMETRY", "1")
+    env.setdefault("CHROMADB_TELEMETRY_IMPLEMENTATION", "noop")
+    return subprocess.call(cmd, cwd=str(ROOT_DIR), env=env)
 
 
 def main(argv: list[str] | None = None) -> int:

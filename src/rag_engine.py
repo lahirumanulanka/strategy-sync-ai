@@ -30,7 +30,8 @@ class RAGEngine:
 
     def __init__(self, model: Optional[str] = None) -> None:
         # Model name can be overridden via env var OPENAI_MODEL
-        self.model = model or os.environ.get("OPENAI_MODEL", "gpt-5")
+        # Use a widely supported default; allow override via env or arg
+        self.model = model or os.environ.get("OPENAI_MODEL") or "gpt-4o-mini"
         self.api_key = os.environ.get("OPENAI_API_KEY")
 
     # ------------------------- Prompt Construction -------------------------
@@ -93,6 +94,7 @@ class RAGEngine:
     # ------------------------- LLM Invocation -------------------------
     def _call_openai(self, user_msg: ChatCompletionUserMessageParam) -> Optional[str]:
         if not self.api_key:
+            print("RAGEngine: OPENAI_API_KEY not set; using fallback.")
             return None
         try:
             from openai import OpenAI  # type: ignore
@@ -107,10 +109,11 @@ class RAGEngine:
                     },
                     user_msg,
                 ],
-                temperature=0.2,
             )
+            print(f"RAGEngine: OpenAI call succeeded (model={self.model}).")
             return completion.choices[0].message.content
-        except Exception:
+        except Exception as e:
+            print(f"RAGEngine: OpenAI call failed: {e!r}; using fallback.")
             return None
 
     # ------------------------- Parsing and Fallback -------------------------
