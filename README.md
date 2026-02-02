@@ -1,5 +1,5 @@
 ---
-noteId: "eb9187d0004611f1a87c5178a28aa623"
+noteId: "6460a790004711f1a87c5178a28aa623"
 tags: []
 title: "Strategy–Action Synchronization AI"
 emoji: "🧭"
