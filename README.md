@@ -18,19 +18,19 @@ This system uses **Natural Language Processing (NLP)**, **sentence embeddings**,
 The system is designed using a **layered architecture**, where each layer has a clear responsibility.
 
 Strategic Plan (JSON) + Action Plan (JSON)
-↓
+->
 Text Preprocessing
-↓
+->
 Sentence Embeddings
-↓
+->
 Vector Database (ChromaDB)
-↓
+->
 Strategy–Action Similarity Matching
-↓
+->
 Alignment Scoring & Coverage Analysis
-↓
+->
 Improvement Recommendations
-↓
+->
 Streamlit Dashboard
 
 ---
