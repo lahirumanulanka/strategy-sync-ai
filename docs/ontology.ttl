@@ -1,0 +1,51 @@
+@prefix ss: <http://example.org/strategy-sync#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+
+# Core classes
+ss:Strategy a rdfs:Class ;
+    rdfs:label "Strategy" ;
+    rdfs:comment "A strategic objective capturing goals and KPIs." .
+
+ss:ActionTask a rdfs:Class ;
+    rdfs:label "Action Task" ;
+    rdfs:comment "An actionable task with ownership and timeline." .
+
+# Relationships
+ss:hasAction a rdfs:Property ;
+    rdfs:label "has action" ;
+    rdfs:comment "Links a Strategy to its implementing ActionTask." ;
+    rdfs:domain ss:Strategy ;
+    rdfs:range ss:ActionTask .
+
+ss:ownedBy a rdfs:Property ;
+    rdfs:label "owned by" ;
+    rdfs:comment "Owner of an ActionTask." ;
+    rdfs:domain ss:ActionTask ;
+    rdfs:range xsd:string .
+
+ss:startDate a rdfs:Property ;
+    rdfs:label "start date" ;
+    rdfs:comment "Start date of an ActionTask." ;
+    rdfs:domain ss:ActionTask ;
+    rdfs:range xsd:date .
+
+ss:endDate a rdfs:Property ;
+    rdfs:label "end date" ;
+    rdfs:comment "End date of an ActionTask." ;
+    rdfs:domain ss:ActionTask ;
+    rdfs:range xsd:date .
+
+ss:relatesToKPI a rdfs:Property ;
+    rdfs:label "relates to KPI" ;
+    rdfs:comment "Relates a Strategy to a KPI label." ;
+    rdfs:domain ss:Strategy ;
+    rdfs:range xsd:string .
+
+# Optional hierarchy (future)
+ss:broader a rdfs:Property ;
+    rdfs:label "broader" ;
+    rdfs:comment "Hierarchy among strategies (SKOS-like)." ;
+    rdfs:domain ss:Strategy ;
+    rdfs:range ss:Strategy .
