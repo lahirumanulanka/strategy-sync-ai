@@ -5,7 +5,6 @@ import os
 import subprocess
 import sys
 from pathlib import Path
-from datetime import datetime, timezone
 
 ROOT_DIR = Path(__file__).resolve().parent
 
@@ -98,12 +97,27 @@ def main(argv: list[str] | None = None) -> int:
     ui = sub.add_parser("ui", help="Launch the Streamlit app (default)")
     ui.add_argument("--port", type=int, default=None, help="Streamlit server port")
 
-    cli = sub.add_parser("cli", help="Run the CLI alignment script once")
+    sub.add_parser("cli", help="Run the CLI alignment script once")
 
-    graph = sub.add_parser("graph", help="Build the RDF graph (TTL)")
+    sub.add_parser("graph", help="Build the RDF graph (TTL)")
     sub.add_parser("graph-query", help="Print graph counts and sample links")
     sub.add_parser("eval", help="Run evaluation (Precision/Recall/MAP/NDCG)")
     sub.add_parser("all", help="Run alignment, build graph, and evaluation")
+    full = sub.add_parser("full-run", help="Run the updated end-to-end pipeline")
+    full.add_argument("strategic_path", type=str, help="Path to strategic.json")
+    full.add_argument("action_path", type=str, help="Path to action.json")
+    full.add_argument(
+        "--ground_truth_path",
+        type=str,
+        default=None,
+        help="Optional ground truth mapping JSON",
+    )
+    full.add_argument("--top_k", type=int, default=5, help="Top-K retrieval")
+    full.add_argument(
+        "--rebuild_index",
+        action="store_true",
+        help="Recreate ChromaDB index by clearing persistent dir",
+    )
 
     args = parser.parse_args(argv)
 
@@ -127,6 +141,26 @@ def main(argv: list[str] | None = None) -> int:
         rc2 = run_build_graph()
         rc3 = run_evaluation()
         return 0 if (rc1 == 0 and rc2 == 0 and rc3 == 0) else 1
+    elif args.command == "full-run":
+        cmd = [
+            sys.executable,
+            str(ROOT_DIR / "scripts" / "run_full_flow.py"),
+            str(getattr(args, "strategic_path")),
+            str(getattr(args, "action_path")),
+        ]
+        if getattr(args, "ground_truth_path", None):
+            cmd.extend(["--ground_truth_path", str(getattr(args, "ground_truth_path"))])
+        if getattr(args, "top_k", None):
+            cmd.extend(["--top_k", str(getattr(args, "top_k"))])
+        if getattr(args, "rebuild_index", False):
+            cmd.append("--rebuild_index")
+        print("Running full pipeline...\n", " ".join(cmd))
+        env = os.environ.copy()
+        env.setdefault("CHROMADB_ANONYMIZED_TELEMETRY", "false")
+        env.setdefault("ANONYMIZED_TELEMETRY", "false")
+        env.setdefault("CHROMADB_DISABLE_TELEMETRY", "1")
+        env.setdefault("CHROMADB_TELEMETRY_IMPLEMENTATION", "noop")
+        return subprocess.call(cmd, cwd=str(ROOT_DIR), env=env)
     else:
         parser.print_help()
         return 1
@@ -134,3 +168,7 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
+# source .venv/bin/activate
+# pip install -r requirements.txt
+# python main.py ui --port 8504

@@ -4,7 +4,12 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from src.ontology import build_graph_from_files, save_graph  # noqa: E402
+from src import ontology  # noqa: E402
+try:
+    build_graph_from_files = ontology.build_graph_from_files
+except AttributeError:
+    build_graph_from_files = ontology.build_graph
+save_graph = ontology.save_graph
 
 ONTOLOGY = ROOT / "docs" / "ontology.ttl"
 STRATEGY_JSON = ROOT / "data" / "strategic.json"

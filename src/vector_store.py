@@ -24,6 +24,9 @@ class ActionVectorStore:
         os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
         os.environ.setdefault("CHROMADB_DISABLE_TELEMETRY", "1")
         os.environ.setdefault("CHROMADB_TELEMETRY_IMPLEMENTATION", "noop")
+        # Ensure default tenant/database environment variables for Chroma 0.5+
+        os.environ.setdefault("CHROMADB_DEFAULT_TENANT", "default_tenant")
+        os.environ.setdefault("CHROMADB_DEFAULT_DATABASE", "default_database")
         # Monkeypatch PostHog capture to a no-op to avoid signature errors
         try:  # pragma: no cover
             import posthog  # type: ignore
@@ -42,11 +45,36 @@ class ActionVectorStore:
         logging.getLogger("chromadb").setLevel(logging.ERROR)
         logging.getLogger("chromadb.telemetry").setLevel(logging.ERROR)
 
-        # Disable telemetry via client settings too
-        self.client = chromadb.PersistentClient(
-            path=persist_directory,
-            settings=Settings(anonymized_telemetry=False),
-        )
+        # Disable telemetry via client settings too, and use absolute path
+        abs_path = os.path.abspath(persist_directory)
+        try:
+            self.client = chromadb.PersistentClient(
+                path=abs_path,
+                settings=Settings(anonymized_telemetry=False),
+            )
+        except ValueError:
+            # Fallback: reset directory and retry PersistentClient; if still failing, use local Client
+            try:
+                import shutil
+
+                shutil.rmtree(abs_path, ignore_errors=True)
+            except Exception:
+                pass
+            os.makedirs(abs_path, exist_ok=True)
+            try:
+                self.client = chromadb.PersistentClient(
+                    path=abs_path,
+                    settings=Settings(anonymized_telemetry=False),
+                )
+            except ValueError:
+                # Final fallback to non-tenant local client
+                self.client = chromadb.Client(
+                    Settings(
+                        anonymized_telemetry=False,
+                        chroma_api_impl="local",
+                        persist_directory=abs_path,
+                    )
+                )
         # Ensure cosine space for distances
         self.collection = self.client.get_or_create_collection(
             name="actions",

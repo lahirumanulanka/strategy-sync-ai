@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Iterable, Set
+from typing import Dict, List, Tuple, Iterable, Set, Any
 
 import math
 
@@ -63,6 +63,7 @@ class EvalSummary:
     map: float
     mean_ndcg: float
     per_strategy: List[StrategyEval]
+    similarity_summary: Dict[str, float] | None = None
 
 
 def evaluate_alignment(
@@ -113,5 +114,88 @@ def evaluate_alignment(
         map=sum(ap_list) / max(1, len(ap_list)),
         mean_ndcg=sum(ndcg_list) / max(1, len(ndcg_list)),
         per_strategy=per_strategy,
+        similarity_summary=None,
     )
     return summary
+
+
+def precision_at_k(pred_ids: List[str], truth_ids: Set[str], k: int) -> float:
+    p, _ = precision_recall_at_k(pred_ids, truth_ids, k)
+    return p
+
+
+def recall_at_k(pred_ids: List[str], truth_ids: Set[str], k: int) -> float:
+    _, r = precision_recall_at_k(pred_ids, truth_ids, k)
+    return r
+
+
+def run_evaluation(
+    alignment_result: Dict[str, Any], ground_truth_path: str | None, top_k: int = 5
+) -> Dict[str, Any]:
+    """Compute Precision@K, Recall@K and similarity summaries given alignment results.
+
+    Ground truth format: {"S1": ["A3","A9"], "S2": ["A2"], ...}
+    """
+    import json
+    from pathlib import Path
+
+    truth_map: Dict[str, List[str]] = {}
+    if ground_truth_path:
+        p = Path(ground_truth_path)
+        if p.exists():
+            with p.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                truth_map = {str(k): list(v or []) for k, v in data.items()}
+
+    per_strategy: List[Dict[str, Any]] = []
+    p_list: List[float] = []
+    r_list: List[float] = []
+
+    retrieved_sims: List[float] = []
+    relevant_sims: List[float] = []
+
+    for sres in alignment_result.get("strategy_results", []):
+        sid = sres.get("strategy_id")
+        preds = [m.get("action_id") for m in sres.get("top_matches", [])]
+        sims = [float(m.get("similarity", 0.0)) for m in sres.get("top_matches", [])]
+        truth = set(truth_map.get(str(sid), []))
+
+        p, r = precision_recall_at_k(preds, truth, top_k)
+        ap = average_precision(preds, truth)
+        nd = ndcg_at_k(preds, truth, top_k)
+
+        per_strategy.append(
+            {
+                "strategy_id": sid,
+                "precision_at_k": p,
+                "recall_at_k": r,
+                "ap": ap,
+                "ndcg": nd,
+            }
+        )
+        p_list.append(p)
+        r_list.append(r)
+
+        # Similarity summaries
+        retrieved_sims.extend(sims)
+        # Relevant sims: similarity of matches that are in ground truth
+        for m in sres.get("top_matches", []):
+            if m.get("action_id") in truth:
+                relevant_sims.append(float(m.get("similarity", 0.0)))
+
+    eval_summary = {
+        "top_k": top_k,
+        "macro_precision": sum(p_list) / max(1, len(p_list)),
+        "macro_recall": sum(r_list) / max(1, len(r_list)),
+        "per_strategy": per_strategy,
+        "similarity_summary": {
+            "retrieved_mean": (sum(retrieved_sims) / max(1, len(retrieved_sims)))
+            if retrieved_sims
+            else 0.0,
+            "relevant_mean": (sum(relevant_sims) / max(1, len(relevant_sims)))
+            if relevant_sims
+            else 0.0,
+        },
+    }
+    return eval_summary

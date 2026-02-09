@@ -21,7 +21,10 @@ if str(ROOT_DIR) not in sys.path:
 from src.models import StrategicObjective, ActionTask, load_actions, load_strategies
 from src.alignment import AlignmentEngine
 from src.recommendations import generate_recommendations
+from src.ontology import build_graph_from_alignment, save_graph, query_graph_stats
+from src.evaluation import run_evaluation
 from src.rag_engine import RAGEngine
+from src.pipeline import run_full_flow
 from src.viz import (
     fig_overall_gauge,
     fig_coverage_gauge,
@@ -84,6 +87,10 @@ with st.sidebar:
     use_sample = st.checkbox("Use sample data", value=True)
     st.caption("Toggle off to upload your own plans (JSON or PDF).")
     use_llm = st.checkbox("Use LLM (RAG) for suggestions if available", value=False)
+    gt_upload = st.file_uploader(
+        "Upload Ground Truth Mapping (optional JSON)", type=["json"], key="gt_json"
+    )
+    top_k = st.slider("Top-K actions per strategy", min_value=1, max_value=10, value=5)
     uploaded_strategic = None
     uploaded_action = None
     if not use_sample:
@@ -146,9 +153,57 @@ if run:
             strategies = _build_strategy_objects(s_data)
             actions = _build_action_objects(a_data)
 
-        # Compute alignment
-        engine = AlignmentEngine()
-        result = engine.align(strategies=strategies, actions=actions, top_k=5)
+        # Prepare file paths for pipeline entrypoint
+        strategic_path = DATA_DIR / "strategic.json"
+        action_path = DATA_DIR / "action.json"
+        gt_path = None
+
+        if use_sample:
+            strategic_path = DATA_DIR / "strategic.json"
+            action_path = DATA_DIR / "action.json"
+        else:
+            # Write uploaded or parsed JSONs to temp files for pipeline consumption
+            tmp_s_path = OUTPUTS_DIR / "_strategic_uploaded.json"
+            tmp_a_path = OUTPUTS_DIR / "_action_uploaded.json"
+            # Ensure JSON-serializable dicts (convert dates via pydantic mode="json")
+            serial_strategies = [
+                (d.model_dump(mode="json") if hasattr(d, "model_dump") else d)
+                for d in strategies
+            ]
+            serial_actions = [
+                (d.model_dump(mode="json") if hasattr(d, "model_dump") else d)
+                for d in actions
+            ]
+            tmp_s_path.write_text(
+                json.dumps(serial_strategies, indent=2), encoding="utf-8"
+            )
+            tmp_a_path.write_text(
+                json.dumps(serial_actions, indent=2), encoding="utf-8"
+            )
+            strategic_path = tmp_s_path
+            action_path = tmp_a_path
+
+        if gt_upload is not None:
+            gt_data = json.load(gt_upload)
+            tmp_gt_path = OUTPUTS_DIR / "_gt_uploaded.json"
+            tmp_gt_path.write_text(json.dumps(gt_data, indent=2), encoding="utf-8")
+            gt_path = str(tmp_gt_path)
+
+        # Run full pipeline flow
+        final_report = run_full_flow(
+            strategic_path=str(strategic_path),
+            action_path=str(strategic_path.parent / Path(action_path).name)
+            if use_sample
+            else str(action_path),
+            ground_truth_path=gt_path,
+            top_k=top_k,
+            rebuild_index=False,
+        )
+        result = {
+            "overall_score": final_report.get("overall_score", 0.0),
+            "coverage_percent": final_report.get("coverage_percent", 0.0),
+            "strategy_results": final_report.get("per_strategy", []),
+        }
 
         # Optional RAG vs deterministic recommendations
         rag_out_per_strategy = None
@@ -189,10 +244,26 @@ if run:
         sdf = strategies_dataframe(result["strategy_results"])
         mdf = matches_long_dataframe(result["strategy_results"])
 
-        # Tabs: Overview | Strategy Explorer | RAG Suggestions | Data Export
+        # Graph stats & TTL from final_report artifacts
+        graph_stats = final_report.get("graph_stats", {})
+        ttl_path = final_report.get("artifacts", {}).get(
+            "ttl", OUTPUTS_DIR / "strategy_graph.ttl"
+        )
+
+        # Evaluation results from final_report
+        eval_json = final_report.get("evaluation")
+
+        # Tabs: Overview | Strategy Explorer | Graph | Evaluation | RAG Suggestions | Data Export
         st.subheader("Dashboard")
-        tab_overview, tab_strategy, tab_rag, tab_export = st.tabs(
-            ["Overview", "Strategy Explorer", "RAG Suggestions", "Data Export"]
+        tab_overview, tab_strategy, tab_graph, tab_eval, tab_rag, tab_export = st.tabs(
+            [
+                "Overview",
+                "Strategy Explorer",
+                "Graph",
+                "Evaluation",
+                "RAG Suggestions",
+                "Data Export",
+            ]
         )
 
         with tab_overview:
@@ -276,6 +347,8 @@ if run:
                         for rk in rj["risks"]:
                             st.write(f"- {rk}")
             else:
+                # Use pipeline recommendations if present
+                recs = final_report.get("recommendations", recs or [])
                 for rec in recs or []:
                     st.markdown(
                         f"**{rec['strategy_title']}** — {rec['alignment_label']}"
@@ -283,16 +356,25 @@ if run:
                     for s in rec.get("suggestions", []):
                         st.write(f"- {s}")
 
+        with tab_graph:
+            st.subheader("Knowledge Graph")
+            st.write(f"TTL saved to: {ttl_path}")
+            st.json(graph_stats)
+
+        with tab_eval:
+            st.subheader("Evaluation")
+            if eval_json is not None:
+                st.json(eval_json)
+                # Show per-strategy table
+                df_eval = pd.DataFrame(eval_json.get("per_strategy", []))
+                st.dataframe(df_eval, use_container_width=True)
+            else:
+                st.info("Upload a ground-truth JSON in the sidebar to compute metrics.")
+
         with tab_export:
             timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
             out_path = OUTPUTS_DIR / f"alignment_result_{timestamp}.json"
-            if use_llm and rag_out_per_strategy:
-                payload = {
-                    "result": result,
-                    "rag_recommendations": rag_out_per_strategy,
-                }
-            else:
-                payload = {"result": result, "recommendations": recs or []}
+            payload = final_report
             # Save to outputs folder
             out_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
             st.success(f"Results saved to {out_path}")
@@ -314,9 +396,9 @@ if run:
                     )
             # Downloads
             st.download_button(
-                label="Download Results JSON",
+                label="Download Final Report JSON",
                 data=json.dumps(payload, indent=2),
-                file_name=f"alignment_result_{timestamp}.json",
+                file_name=f"final_report_{timestamp}.json",
                 mime="application/json",
             )
             # CSVs
