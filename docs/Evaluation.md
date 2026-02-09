@@ -1,3 +1,9 @@
+---
+noteId: "948dd8a105cb11f1a0cc25ab32d7d779"
+tags: []
+
+---
+
 # Evaluation of Strategy–Action Synchronization AI
 
 This document presents a comprehensive, practitioner-focused evaluation of the Strategy–Action Synchronization AI system. It explains the rationale, metrics, methodology, and how results should be interpreted for both academic assessment and real-world use. The system aligns strategic objectives with action tasks using sentence embeddings, vector search (ChromaDB), and optional RAG-based recommendations, producing dashboards and JSON outputs that can be audited.
@@ -69,6 +75,14 @@ S1: P@5=0.600 | R@5=0.750 | AP=0.700 | NDCG=0.720
 ...
 ```
 (Values are illustrative; actual numbers depend on your data and ground truth.)
+
+Alternatively, run the unified pipeline which computes evaluation when a ground-truth path is provided:
+
+```bash
+/Users/lahirumunasinghe/Documents/DataScience/strategy-sync-ai/.venv/bin/python main.py full-run data/strategic.json data/action.json --ground_truth_path data/ground_truth.json --top_k 5
+```
+
+This produces a final report that includes `evaluation` (macro metrics and per-strategy results). In Streamlit, open the Evaluation tab to review the same output interactively.
 
 ## Interpreting Results
 

@@ -1,3 +1,9 @@
+---
+noteId: "948dd8a005cb11f1a0cc25ab32d7d779"
+tags: []
+
+---
+
 # Dashboard Design
 
 ## Goals

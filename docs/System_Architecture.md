@@ -1,3 +1,9 @@
+---
+noteId: "948dffb005cb11f1a0cc25ab32d7d779"
+tags: []
+
+---
+
 # System Architecture Overview
 
 See the full topology diagram in `.azure/architecture.copilotmd` for a renderable Mermaid diagram and detailed data-flow notes.
@@ -9,6 +15,7 @@ See the full topology diagram in `.azure/architecture.copilotmd` for a renderabl
 - Persistent storage: outputs JSON/CSV; optional cloud storage
 - Telemetry: Application Insights (optional)
 - Secrets: Key Vault (optional)
+ - `Pipeline`: unified orchestrator that runs alignment, builds RDF graph, computes explainability stats, and (optionally) evaluation
 
 ## Data Flow Summary
 1. Ingest strategic and action plans (JSON/PDF)  
@@ -18,6 +25,19 @@ See the full topology diagram in `.azure/architecture.copilotmd` for a renderabl
 5. Visualize in dashboard; export results
 
 ---
+
+## Updated End-to-End Pipeline
+
+The project now includes a unified entrypoint that orchestrates alignment, knowledge graph construction, and evaluation in a single run:
+
+- Entrypoint: `run_full_flow(strategic_path, action_path, ground_truth_path=None, top_k=5, rebuild_index=False)` in `src/pipeline.py`.
+- CLI: `python main.py full-run data/strategic.json data/action.json --ground_truth_path data/ground_truth.json --top_k 5`
+- Artifacts written to `outputs/`:
+	- Final report JSON containing alignment results, graph stats, and optional evaluation (`final_report_*.json`)
+	- RDF/Turtle graph file (`strategy_graph.ttl`)
+	- Optional evaluation JSON (`evaluation.json`) when ground truth is provided
+
+Streamlit has corresponding tabs for Graph (TTL + stats) and Evaluation (macro + per-strategy metrics). The pipeline is deterministic and runs without external APIs.
 
 ## Extended Architecture (Comprehensive)
 
@@ -37,6 +57,12 @@ The Strategy–Action Synchronization AI (SAS-AI) architecture is designed to re
 - **Data Layer & Exports:** Inputs come from JSON or PDF; the app writes outputs (alignment results and recommendations) to `outputs/` with timestamped filenames. CSV exports for strategies and matches facilitate analysis in spreadsheet tools or BI platforms.
 - **Observability (optional):** Azure Application Insights can be used to gather telemetry on usage, latency, and errors. This supports performance tuning and reliability improvements.
 - **Secrets Management (optional):** Azure Key Vault secures API keys and sensitive configuration. The app accesses secrets through environment variables or managed identities in production.
+
+### Ontology & Knowledge Graph
+- **`src/ontology.py`:** Builds an RDF graph from alignment results. Instances of `ss:Strategy` and `ss:ActionTask` are created with labels, ownership, and optional dates.
+- **Edges:** `ss:hasAction` links strategies to their top-K matched actions. Similarity scores and labels (Strong/Medium/Weak) are stored via data properties like `ss:hasSimilarity` and `ss:hasLabel`.
+- **SPARQL Stats:** The pipeline computes explainability stats (e.g., actions per strategy, zero-action strategies, owner workload) using rdflib SPARQL queries.
+- **Export:** Saves `outputs/strategy_graph.ttl` for inspection in Protégé or downstream tools.
 
 ### Data Ingestion and Schema
 The app supports two main ingestion paths:
@@ -73,9 +99,11 @@ This structured approach improves reliability and reduces the chance of off-form
 3. **Indexing:** Action tasks are embedded and stored in ChromaDB with metadata.
 4. **Querying:** For each strategy, an embedding is computed; ChromaDB returns top-K action matches with similarity scores.
 5. **Scoring & Labeling:** The app computes per-strategy averages, overall score, coverage, and assigns labels based on thresholds.
-6. **Recommendations:** RAG/LLM generates structured improvements (or fallback suggestions). KPIs and timelines provide measurable and time-bound guidance.
-7. **Visualization:** Dashboards render gauges, bars, pies, heatmaps, and tables. Users can inspect per-strategy expansions and owner workload distribution.
-8. **Export:** Results are saved to `outputs/` with a timestamp; CSVs and JSON downloads are offered in the UI.
+6. **Graph Construction:** The pipeline builds an RDF graph from alignment results and computes SPARQL-based stats for explainability.
+7. **Recommendations:** RAG/LLM generates structured improvements (or fallback suggestions). KPIs and timelines provide measurable and time-bound guidance.
+8. **Evaluation (optional):** If ground truth mappings are provided, the pipeline computes Precision@K, Recall@K, MAP, and NDCG.
+9. **Visualization:** Dashboards render gauges, bars, pies, heatmaps, and tables, plus Graph and Evaluation tabs.
+10. **Export:** Results, graph TTL, and evaluation JSON are saved to `outputs/` with timestamps; CSVs and JSON downloads are offered in the UI.
 
 ### Deployment Options
 **Local Development:** The app runs via `streamlit run app/streamlit_app.py`, using local persistence for ChromaDB. This is ideal for iterative testing and debugging.
@@ -115,11 +143,13 @@ Use dashboards and alerts to ensure the app remains responsive and reliable. For
 - **RAG Fallback:** Deterministic templates guarantee recommendations even if the LLM is unreachable, rate-limited, or misconfigured.
 - **Graceful Degradation:** Charts render defaults when datasets are empty or sparse; UI provides warnings rather than hard failures.
 - **Persistent Store:** ChromaDB persistence ensures the index endures restarts; recovery is straightforward.
+ - **Tenant/DB Resilience:** The vector store initialization sets default tenant/database env vars and falls back to a local (non-persistent) client if the persistent client cannot be established. This ensures Streamlit/CLI runs continue on environments with restricted filesystem or sqlite permissions.
 
 ### Testing and Validation Hooks
 - **Unit Tests:** Smoke and alignment tests validate core behaviors. CI can run `pytest -q` on push to main.
 - **Manual QA:** Use the dashboard to inspect strategy-level matches and ensure labels match expectations.
 - **Acceptance Metrics:** Review Overall Score and Coverage over time. Aim for steady improvements with data enrichment and threshold tuning.
+ - **Full-Flow Smoke:** `tests/test_full_flow_smoke.py` verifies artifact creation (final report, TTL, optional evaluation) from a single pipeline run.
 
 ### Extensibility and Future Directions
 - **Hybrid Retrieval:** Combine lexical (BM25) and dense embeddings with reranking for improved precision.
@@ -136,3 +166,5 @@ Use dashboards and alerts to ensure the app remains responsive and reliable. For
 
 ### Summary
 This architecture balances practicality and rigor. The deterministic alignment core and persistent vector store ensure stability, while optional RAG enriches recommendations for weak or medium alignments. The system fits both classroom and production contexts: simple enough to run locally, and robust enough to host in Azure with proper observability and security. Over time, data enrichment, threshold calibration, and retrieval upgrades will increase Overall Score and Coverage, delivering a more transparent and effective strategy-to-execution pipeline.
+
+The updated pipeline further enhances explainability and rigor by integrating an RDF knowledge graph and IR evaluation metrics directly into the end-to-end flow, with artifacts and dashboards that make inspection and assessment straightforward. See the project structure overview in [README.md](../README.md) for file locations and quickstart commands.

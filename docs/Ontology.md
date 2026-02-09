@@ -1,3 +1,9 @@
+---
+noteId: "948dd8a305cb11f1a0cc25ab32d7d779"
+tags: []
+
+---
+
 # Ontology and Knowledge Graph for Strategy–Action Synchronization
 
 This document explains the ontology and knowledge graph design used to represent strategies, actions, and their relationships in the Strategy–Action Synchronization AI system. It covers goals, modeling decisions, RDF/Turtle implementation, integration with the alignment engine, and practical ways to inspect and query the graph.
@@ -35,8 +41,8 @@ These choices keep the graph compact while enabling useful queries. You can intr
 ## Implementation in the Repository
 
 - **Ontology file**: `docs/ontology.ttl`
-- **Graph builder**: `src/ontology.py` contains functions to load the base ontology, add instances from JSON (`load_strategies`, `load_actions`), and link strategies to actions.
-- **Runner scripts**: `scripts/build_graph.py` builds the graph and saves `outputs/strategy_graph.ttl`; `scripts/query_graph.py` prints counts and samples.
+- **Graph builder**: `src/ontology.py` builds the graph directly from alignment results (top-K matches). It creates individuals and links using `ss:hasAction`, and stores similarity/labels as data properties (`ss:hasSimilarity`, `ss:hasLabel`).
+- **Runner scripts**: `scripts/build_graph.py` builds the graph and saves `outputs/strategy_graph.ttl`; `scripts/query_graph.py` prints counts and samples. The unified pipeline in `src/pipeline.py` also saves the TTL and computes SPARQL-based stats.
 
 URIs are minting as:
 - Strategies: `http://example.org/strategy-sync/strategy/{strategy_id}`
@@ -46,13 +52,13 @@ The base namespace is `http://example.org/strategy-sync#` (prefix `ss:`).
 
 ## Linking Strategies to Actions
 
-The scaffold currently links all strategies to all actions to demonstrate end-to-end graph functionality. In production, you should replace this with top-K links from the `AlignmentEngine`:
+The current implementation links each strategy to its top-K matched actions produced by the `AlignmentEngine`:
 
 1. Embed each strategy and retrieve top-K actions (as done in alignment).
 2. Add `ss:hasAction` edges only for those matches (optionally thresholded by similarity).
-3. Optionally encode similarity as a data property (e.g., `ss:hasSimilarity`) or as edge attributes in a property graph if exporting to Neo4j.
+3. Encode similarity and alignment label as data properties (`ss:hasSimilarity`, `ss:hasLabel`).
 
-This integration ensures the graph reflects actual alignment results and can be audited against evaluation metrics.
+This ensures the graph reflects actual alignment results and can be audited against evaluation metrics.
 
 ## Inspecting and Querying the Graph
 
@@ -95,6 +101,8 @@ SELECT ?action ?label ?owner ?start ?end WHERE {
 
 These queries help verify graph completeness and expose coverage issues (e.g., actions without owners or dates).
 
+You can also query owner workload (number of actions per owner) and zero-action strategies via the stats computed in `src/ontology.py` and surfaced by the pipeline into the final report.
+
 ## Design Rationale
 
 - **RDF/Turtle**: Interoperable, simple text format, excellent tooling (rdflib, Protégé) for MSc/IR workflows.
@@ -136,7 +144,10 @@ Combining IR metrics with graph analytics yields a richer picture of system qual
    /Users/lahirumunasinghe/Documents/DataScience/strategy-sync-ai/.venv/bin/python main.py graph-query
    ```
 3. Inspect in Protégé by loading `docs/ontology.ttl` and `outputs/strategy_graph.ttl`.
-4. (Optional) Integrate with alignment results by linking only top-K actions per strategy.
+4. End-to-end: use the unified pipeline to build graph and stats alongside alignment and evaluation:
+  ```bash
+  /Users/lahirumunasinghe/Documents/DataScience/strategy-sync-ai/.venv/bin/python main.py full-run data/strategic.json data/action.json --top_k 5
+  ```
 
 ## Summary
 

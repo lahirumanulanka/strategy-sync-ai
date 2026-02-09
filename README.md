@@ -13,6 +13,16 @@ This system uses **Natural Language Processing (NLP)**, **sentence embeddings**,
 - Provide improvement suggestions
 - Present insights through an interactive dashboard
 
+### Full Overview
+
+Strategy–Action Synchronization AI runs a deterministic end-to-end pipeline that:
+- Ingests strategic and action plans (JSON or PDF),
+- Computes semantic alignment (top‑K actions per strategy) using a persistent vector store,
+- Builds an RDF knowledge graph from the alignment results with explainability stats,
+- Optionally evaluates retrieval quality (Precision@K, Recall@K, MAP, NDCG) against ground truth,
+- Generates recommendations (LLM-backed when available, otherwise deterministic fallback), and
+- Visualizes results in a Streamlit dashboard with Overview, Strategy Explorer, Graph, and Evaluation tabs.
+
 ## High-Level System Architecture
 
 The system is designed using a **layered architecture**, where each layer has a clear responsibility.
@@ -106,6 +116,7 @@ strategy-sync-ai/
 │   ├── recommendations.py
 │   ├── rag_engine.py
 │   ├── pdf_to_json.py
+│   ├── pipeline.py
 │   ├── viz.py
 │   └── io_utils.py
 │
@@ -120,8 +131,15 @@ strategy-sync-ai/
 ├── scripts/
 │   ├── check_openai.py
 │   └── run_alignment.py
+│   └── run_full_flow.py
 │
 ├── tests/
+│
+├── docs/
+│   ├── Ontology.md
+│   ├── Evaluation.md
+│   ├── System_Architecture.md
+│   └── ontology.ttl
 │
 ├── main.py
 ├── requirements.txt
@@ -197,6 +215,12 @@ This logic is **deterministic and explainable**, which is important for academic
 
 ---
 
+### 6.5b End-to-End Pipeline (`src/pipeline.py`)
+
+The unified orchestrator `run_full_flow(strategic_path, action_path, ground_truth_path=None, top_k=5, rebuild_index=False)` executes alignment, builds the RDF graph, computes SPARQL-based stats, and (optionally) runs evaluation when ground truth is provided. CLI access via `python main.py full-run ...`.
+
+---
+
 ### 6.6 Recommendation Layer (`src/recommendations.py`, `src/rag_engine.py`)
 
 The system supports **two recommendation modes**:
@@ -252,7 +276,37 @@ streamlit run app/streamlit_app.py
 8.3 Run CLI Mode
 python scripts/run_alignment.py
 
-## 9. Evaluation Strategy
+8.4 End-to-End Full Pipeline (Graph + Evaluation)
+
+Run the unified pipeline that orchestrates alignment, graph construction, and optional evaluation:
+
+```
+python main.py full-run data/strategic.json data/action.json --ground_truth_path data/ground_truth.json --top_k 5
+```
+
+Outputs:
+- Final report JSON in `outputs/` (includes overall score, coverage, per-strategy results, graph stats, and optional evaluation)
+- RDF/Turtle graph: `outputs/strategy_graph.ttl`
+- Optional `evaluation` section in the final report when ground truth is provided
+
+Streamlit Tabs:
+- Overview and Strategy Explorer
+- Graph (shows TTL path and SPARQL-based stats)
+- Evaluation (macro + per-strategy metrics if ground truth is supplied)
+
+---
+
+## 9. Features
+
+- Alignment Engine with semantic embeddings and cosine similarity
+- Persistent vector store (ChromaDB) with resilient initialization
+- RDF knowledge graph with `ss:Strategy`, `ss:ActionTask`, and `ss:hasAction`
+- SPARQL stats for explainability (actions per strategy, owner workload, gaps)
+- Evaluation metrics: Precision@K, Recall@K, MAP, NDCG
+- Streamlit dashboard with interactive charts and exports
+- Deterministic recommendations with optional LLM‑backed RAG
+
+## 10. Evaluation Strategy
 
 To ensure the correctness, reliability, and academic validity of the system, multiple evaluation approaches are considered.
 
@@ -284,7 +338,7 @@ This ensures deterministic behavior suitable for academic assessment.
 
 ---
 
-## 10. Deployment
+## 11. Deployment
 
 The application is designed to support both local execution and public deployment.
 
@@ -309,7 +363,7 @@ This hosted version allows evaluators to interact with the system without local 
 
 ---
 
-## 11. Academic Contribution
+## 12. Academic Contribution
 
 This project demonstrates several key academic and practical contributions:
 
@@ -323,7 +377,7 @@ The system design, implementation, and evaluation align closely with the **MSc I
 
 ---
 
-## 12. Future Enhancements
+## 13. Future Enhancements
 
 Several enhancements can be explored to extend the system further:
 
@@ -332,13 +386,36 @@ Several enhancements can be explored to extend the system further:
 - **KPI-weighted similarity scoring** to prioritize critical objectives
 - **Agentic AI reasoning layer** for autonomous improvement exploration
 - **Temporal dependency analysis** to evaluate schedule and milestone alignment
+ - **Ground truth validators** in UI to warn on unknown IDs
+ - **One-click vector store reset** button for local troubleshooting
 
 These improvements provide clear directions for future research and development.
 
 ---
 
-## 13. Author
+## 14. Author
 
 **Lahiru Munasinghe**  
 MSc in Computer Science – Information Retrieval  
 2024 Batch
+
+---
+
+Notes:
+- ChromaDB telemetry is disabled by default for cleaner local runs.
+- The vector store initialization includes tenant/database defaults and a fallback to a local client if persistent storage cannot be established (e.g., read-only sqlite environments), ensuring Streamlit and CLI runs remain resilient.
+
+---
+
+## Troubleshooting
+
+- Prefer running in a virtual environment to avoid system package conflicts:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+- If you see sqlite or tenant errors from ChromaDB, the app automatically falls back to a local (non-persistent) client so you can continue. For a clean rebuild locally, stop the app and remove the `chroma_db/` folder.
+- If evaluation returns zeros, verify `data/ground_truth.json` IDs match your actions. Use `data/ground_truth.example.json` as a template.
