@@ -1,104 +1,106 @@
+---
+title: Strategy Sync AI
+emoji: 📊
+colorFrom: blue
+colorTo: purple
+sdk: streamlit
+app_file: app/streamlit_app.py
+pinned: false
+---
+
 # Strategy–Action Synchronization AI  
-(Intelligent Strategic Plan Synchronization System – ISPS)
+### Intelligent Strategic Plan Synchronization System (ISPS)
+
+---
 
 ## 1. Introduction
 
 This project is developed as part of the **MSc in Computer Science – Information Retrieval** coursework (2024 Batch).
 
-The aim of this system is to **intelligently evaluate how well an organization’s Action Plan aligns with its Strategic Plan**. In many real-world organizations, strategic goals and operational actions are documented separately, making it difficult to objectively verify whether execution truly supports strategy.
+Organizations typically document **Strategic Plans** (long-term goals) and **Action Plans** (operational tasks) as separate artifacts. Due to differences in abstraction level, terminology, and document structure, it becomes difficult to objectively verify whether execution genuinely supports strategy.
 
-This system uses **Natural Language Processing (NLP)**, **sentence embeddings**, **vector similarity**, and **intelligent recommendation techniques** to:
-- Measure alignment quantitatively
-- Identify weak or missing action coverage
-- Provide improvement suggestions
-- Present insights through an interactive dashboard
+The **Strategy–Action Synchronization AI (ISPS)** system addresses this gap by applying **Information Retrieval (IR)** and **Natural Language Processing (NLP)** techniques to automatically evaluate how well an organization’s action plans align with its strategic objectives.
 
-### Full Overview
-
-Strategy–Action Synchronization AI runs a deterministic end-to-end pipeline that:
-- Ingests strategic and action plans (JSON or PDF),
-- Computes semantic alignment (top‑K actions per strategy) using a persistent vector store,
-- Builds an RDF knowledge graph from the alignment results with explainability stats,
-- Optionally evaluates retrieval quality (Precision@K, Recall@K, MAP, NDCG) against ground truth,
-- Generates recommendations (LLM-backed when available, otherwise deterministic fallback), and
-- Visualizes results in a Streamlit dashboard with Overview, Strategy Explorer, Graph, and Evaluation tabs.
-
-## High-Level System Architecture
-
-The system is designed using a **layered architecture**, where each layer has a clear responsibility.
-
-Strategic Plan (JSON) + Action Plan (JSON)
-->
-Text Preprocessing
-->
-Sentence Embeddings
-->
-Vector Database (ChromaDB)
-->
-Strategy–Action Similarity Matching
-->
-Alignment Scoring & Coverage Analysis
-->
-Improvement Recommendations
-->
-Streamlit Dashboard
+The system leverages:
+- Sentence embeddings for semantic understanding
+- Vector similarity search for alignment detection
+- Deterministic scoring logic for academic reproducibility
+- Optional Retrieval-Augmented Generation (RAG) for recommendations
+- Interactive dashboards for explainability and decision support
 
 ---
 
 ## 2. Problem Background
 
-Organizations often face the following challenges:
-- Strategies are high-level and abstract
-- Actions are operational and detailed
-- Manual alignment checks are subjective
+Organizations face multiple challenges when aligning strategy and execution:
+
+- Strategic objectives are high-level and abstract
+- Action plans are operational and detailed
+- Manual alignment reviews are subjective and error-prone
 - Large documents are difficult to analyze consistently
+- Keyword-based matching fails due to vocabulary mismatch
 
-Traditional keyword matching fails because:
-- Different wording may express the same meaning
-- Important semantic relationships are missed
+Traditional text matching techniques are insufficient because:
+- Different wording may express the same intent
+- Semantic relationships are ignored
+- Important contextual meaning is lost
 
-This project addresses the problem by using **semantic similarity** instead of keyword overlap.
+This project adopts **semantic similarity-based alignment** instead of keyword overlap, enabling a more robust and explainable evaluation.
 
 ---
 
 ## 3. System Objectives
 
-The main objectives of the system are:
+The primary objectives of the ISPS system are:
 
-1. Measure overall synchronization between Strategic and Action Plans  
-2. Analyze alignment for each individual strategy  
+1. Quantitatively measure alignment between Strategic and Action Plans  
+2. Analyze alignment at both global and per-strategy levels  
 3. Identify weakly supported or unsupported strategies  
-4. Provide intelligent and explainable improvement suggestions  
-5. Visualize insights in an interactive and user-friendly dashboard  
-6. Ensure deterministic behavior suitable for academic evaluation  
+4. Generate explainable improvement recommendations  
+5. Visualize insights through an interactive dashboard  
+6. Maintain deterministic and reproducible behavior suitable for academic evaluation  
 
 ---
 
-## 4. High-Level System Architecture
+## 4. Updated System Architecture (End-to-End)
 
-The system follows a **layered architecture**, where each layer has a clear responsibility.
+The system follows a **layered and pipeline-driven architecture**, ensuring modularity, transparency, and extensibility.
 
-Strategic Plan (JSON) + Action Plan (JSON)
-↓
-Text Preprocessing Layer
-↓
-Embedding Generation Layer
-↓
-Vector Database (ChromaDB)
-↓
-Strategy–Action Similarity Matching
-↓
-Alignment & Coverage Computation
-↓
-Recommendation Generation Layer
-↓
-Streamlit Dashboard (UI)
+### 4.1 High-Level Pipeline Flow
 
-This architecture improves:
-- Modularity
-- Explainability
-- Maintainability
-- Academic clarity
+Strategic Plan (JSON / PDF)  
++  
+Action Plan (JSON / PDF)  
+↓  
+Text Preprocessing & Normalization  
+↓  
+Sentence Embedding Generation  
+↓  
+Vector Database (ChromaDB)  
+↓  
+Strategy–Action Similarity Retrieval (Top-K)  
+↓  
+Alignment Scoring & Coverage Computation  
+↓  
+Recommendation Generation (LLM or Deterministic)  
+↓  
+Graph Construction (Strategy–Action Relationships)  
+↓  
+Evaluation Against Ground Truth (Optional)  
+↓  
+Streamlit Dashboard & Exportable Reports  
+
+---
+
+### 4.2 Architectural Benefits
+
+This architecture provides:
+
+- Clear separation of concerns  
+- Reusability across CLI, UI, and batch pipelines  
+- Explainability for academic assessment  
+- Support for both AI-driven and deterministic logic  
+- Easy extension toward knowledge graphs and ontologies  
 
 ---
 
