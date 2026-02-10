@@ -18,7 +18,6 @@ outputs/
 # Common binaries
 *.sqlite3
 *.bin
-*.pdf
 *.parquet
 *.pt
 *.onnx
