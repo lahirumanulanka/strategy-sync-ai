@@ -6,7 +6,7 @@ import logging
 
 import chromadb
 from chromadb.config import Settings
-from chromadb.api.types import IncludeEnum, Metadata
+from chromadb.api.types import Metadata
 import numpy as np
 
 
@@ -131,11 +131,7 @@ class ActionVectorStore:
         res = self.collection.query(
             query_embeddings=[list(embedding)],
             n_results=top_k,
-            include=[
-                IncludeEnum.distances,
-                IncludeEnum.metadatas,
-                IncludeEnum.documents,
-            ],
+            include=["distances", "metadatas", "documents"],
         )
         ids = (res.get("ids") or [[]])[0]
         dists = (res.get("distances") or [[]])[0]

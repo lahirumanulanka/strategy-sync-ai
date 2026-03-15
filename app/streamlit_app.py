@@ -19,10 +19,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.append(str(ROOT_DIR))
 
 from src.models import StrategicObjective, ActionTask, load_actions, load_strategies
-from src.alignment import AlignmentEngine
 from src.recommendations import generate_recommendations
-from src.ontology import build_graph_from_alignment, save_graph, query_graph_stats
-from src.evaluation import run_evaluation
 from src.rag_engine import RAGEngine
 from src.pipeline import run_full_flow
 from src.viz import (
